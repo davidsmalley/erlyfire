@@ -1,0 +1,5 @@
+{domain, ""}.
+{use_ssl, false}.
+{username, ""}.
+{password, ""}.
+{room_id, ""}.
