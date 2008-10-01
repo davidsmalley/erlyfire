@@ -9,7 +9,7 @@
 
 start_link() -> 
   gen_server:start_link({local, ?MODULE}, ?MODULE, [], []),
-  connection:start().
+  connection:start_link().
   
 shutdown() ->
   connection:stop(),
