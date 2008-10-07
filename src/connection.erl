@@ -20,7 +20,7 @@ stop() ->
 pinger() ->
     process_flag(trap_exit, true),
     gen_fsm:send_event(?SERVER, poll),
-    timer:sleep(5000),
+    timer:sleep(60000),
     pinger().
 
 init([]) ->
