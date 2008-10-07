@@ -2,16 +2,26 @@
 
 -behaviour(gen_fsm).
 
+-define(SERVER, ?MODULE).
+
 -export([start_link/0]).
 -export([init/1, terminate/3, code_change/4, handle_event/3, handle_info/3, handle_sync_event/4]).
--export([stop/0]).
--export([poll/2, connect/2, check_login_headers/3, close_connection/1, join_room/2]).
+-export([stop/0, poller/0]).
+-export([disconnected/2, connected/2, active/2, check_login_headers/3, close_connection/1]).
 
 start_link() ->
-    gen_fsm:start_link({local, connection}, connection, [], []).
+    gen_fsm:start_link({local, ?SERVER}, connection, [], []),
+    server_util:start(poll_process, {?SERVER, poller, []}),
+    ok.
 
 stop() ->
-    gen_fsm:send_all_state_event(connection, stop).
+    gen_fsm:send_all_state_event(?SERVER, stop).
+
+poller() ->
+    process_flag(trap_exit, true),
+    gen_fsm:send_event(?SERVER, poll),
+    timer:sleep(5000),
+    poller().
 
 init([]) ->
     case file:consult("../conf/erlyfire.conf") of
@@ -20,12 +30,12 @@ init([]) ->
         application:start(inets),
         ssl:start(),
         http:set_options([{cookies, enabled}]),
-        {ok, connect, ConfigData};
+        {ok, disconnected, ConfigData};
       {error, Why} ->
         {stop, Why}
       end.
 
-connect(_Event, ConfigData) ->
+disconnected(poll, ConfigData) ->
   io:format("ConfigData in connect=~p~n",[ConfigData]),
   [{domain, Domain}, {use_ssl, Ssl}, {username, Username}, {password, Password}, {room_id, _}] = ConfigData,
   case Ssl of
@@ -43,7 +53,7 @@ connect(_Event, ConfigData) ->
       {stop, "Error: Campfire did not redirect us"}
     end.
 
-join_room(_Event, ConfigData) ->
+connected(poll, ConfigData) ->
   [{domain, Domain}, {use_ssl, Ssl}, {username, _}, {password, _}, {room_id, RoomId}] = ConfigData,
   case Ssl of
     true ->
@@ -54,12 +64,12 @@ join_room(_Event, ConfigData) ->
   Url = [Scheme, "://", ibrowse_lib:url_encode(Domain), ".campfirenow.com/", "room/", RoomId],
   case http:request(lists:flatten(Url)) of
     {ok, {{_, 200, _}, _, _}} ->
-      {next_state, poll, ConfigData};
+      {next_state, active, ConfigData};
     _ ->
       {stop, "Error: Campfire did not return a 200"}
     end.
 
-poll(_Event, ConfigData) ->
+active(poll, ConfigData) ->
   [{domain, Domain}, {use_ssl, Ssl}, _, _, {room_id, Roomid}] = ConfigData,
   case Ssl of
     true ->
@@ -69,7 +79,7 @@ poll(_Event, ConfigData) ->
     end,
   Url = [Scheme, "://", ibrowse_lib:url_encode(Domain), ".campfirenow.com/", "room/", Roomid, "/tabs"],
   http:request(post, {lists:flatten(Url), [], [], []}, [], []),
-  {next_state, poll, ConfigData}.
+  {next_state, active, ConfigData}.
 
 handle_event(stop, _StateName, ConfigData) ->
   {stop, "Called Shutdown", ConfigData}.
@@ -98,7 +108,7 @@ check_login_headers(Url, Headers, ConfigData) ->
   Loginurl = Stringurl ++ "login",
   case lists:keysearch("location", 1, Headers) of
     {value,{"location",Stringurl}} ->
-      {next_state, join_room, ConfigData};
+      {next_state, connected, ConfigData};
     {value,{"location",Loginurl}} ->
       {stop, "Incorrect Login Details"};
     false ->
