@@ -6,22 +6,22 @@
 
 -export([start_link/0]).
 -export([init/1, terminate/3, code_change/4, handle_event/3, handle_info/3, handle_sync_event/4]).
--export([stop/0, poller/0]).
+-export([stop/0, pinger/0]).
 -export([disconnected/2, connected/2, active/2, check_login_headers/3, close_connection/1]).
 
 start_link() ->
     gen_fsm:start_link({local, ?SERVER}, connection, [], []),
-    server_util:start(poll_process, {?SERVER, poller, []}),
+    server_util:start(ping_process, {?SERVER, pinger, []}),
     ok.
 
 stop() ->
     gen_fsm:send_all_state_event(?SERVER, stop).
 
-poller() ->
+pinger() ->
     process_flag(trap_exit, true),
     gen_fsm:send_event(?SERVER, poll),
     timer:sleep(5000),
-    poller().
+    pinger().
 
 init([]) ->
     case file:consult("../conf/erlyfire.conf") of
