@@ -7,20 +7,24 @@
 
 -export([start_link/0, shutdown/0]).
 
-start_link() -> 
+start_link() ->
   gen_server:start_link({local, ?MODULE}, ?MODULE, [], []),
-  connection:start_link().
-  
+  connection:start_link(),
+  web_server:start(5050).
+
 shutdown() ->
   connection:stop(),
-  gen_server:call(?SERVER, stop).
+  gen_server:call(?SERVER, stop),
+  web_server:stop(5050).
 
 init([]) ->
   {ok, 0}.
 
+% handle_call(send_message, _From, State) ->
+
 handle_call(stop, _From, State) ->
   {stop, normal, State};
-  
+
 handle_call(_Msg, _From, State) -> {noreply, State}.
 
 handle_cast(_Msg, State) -> {noreply, State}.

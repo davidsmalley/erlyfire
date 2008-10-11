@@ -19,15 +19,24 @@ stop() ->
 
 poller() ->
   process_flag(trap_exit, true),
-  gen_fsm:send_event(?SERVER, poll),
-  timer:sleep(5000),
-  poller().
+  try gen_fsm:send_event(?SERVER, poll) of
+    ok ->
+      timer:sleep(5000),
+      poller()
+  catch
+    error:X -> {nothing, caught, error, X}
+  end.
+
 
 pinger() ->
   process_flag(trap_exit, true),
-  gen_fsm:send_event(?SERVER, ping),
-  timer:sleep(60000),
-  pinger().
+  try gen_fsm:send_event(?SERVER, ping) of
+    ok ->
+      timer:sleep(60000),
+      pinger()
+  catch
+    error:X -> {nothing, caught, error, X}
+  end.
 
 init([]) ->
     case file:consult("../conf/erlyfire.conf") of
@@ -92,6 +101,30 @@ active(poll, [ConfigData, _RoomData]) ->
   Url = [Scheme, "://", ibrowse_lib:url_encode(Domain), ".campfirenow.com/", "room/", Roomid],
   % http:request(lists:flatten(Url)),
   {next_state, active, [ConfigData, _RoomData]};
+
+active({message, Message, Paste}, [ConfigData, _RoomData]) ->
+  [{domain, Domain}, {use_ssl, Ssl}, _, _, {room_id, Roomid}] = ConfigData,
+  case Ssl of
+    true ->
+      Scheme = "https";
+    false ->
+      Scheme = "http"
+    end,
+  case Paste of
+    true ->
+      PasteParam = "&paste=true";
+    _ ->
+      PasteParam = ""
+    end,
+  Url = [Scheme, "://", ibrowse_lib:url_encode(Domain), ".campfirenow.com/", "room/", Roomid, "/speak"],
+  {First, Second, _} = erlang:now(),
+  Post = ["message=", ibrowse_lib:url_encode(Message), "&", "t=", lists:concat([First, Second]), PasteParam],
+  case http:request(post, {lists:flatten(Url), [], "application/x-www-form-urlencoded", lists:flatten(Post)}, [], []) of
+    {ok, {{_, 200, _}, _, _}} ->
+      {next_state, active, [ConfigData, _RoomData]};
+    _ ->
+      {next_state, disconnected, [ConfigData, _RoomData]}
+    end;
 
 active(ping, [ConfigData, _RoomData]) ->
   [{domain, Domain}, {use_ssl, Ssl}, _, _, {room_id, Roomid}] = ConfigData,
