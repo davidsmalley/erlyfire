@@ -2,6 +2,10 @@
 
 -export([start/1,stop/0,dispatch_requests/1]).
 
+-define(JSON_CT, "application/json").
+-define(HTML_CT, "text/html").
+-define(FORM_CT, "application/x-www-form-urlencoded").
+
 start(Port) ->
   mochiweb_http:start([{port, Port},
 		       {loop, fun dispatch_requests/1}]).
@@ -15,16 +19,20 @@ dispatch_requests(Req) ->
   handle(Action, Req).
 
 handle("/post", Req) ->
-  Params = Req:parse_qs(),
-  Message = proplists:get_value("message", Params),
-  success(Req, "text/html", <<"ok">>);
-
-handle("/json", Req) ->
-  Params = Req:parse_qs(),
-  success(Req, "application/json", <<"{'ok'}">>);
+  logger:log("Received request"),
+  case Req:get_primary_header_value("content-type") of
+    ?FORM_CT ++ _ ->
+      logger:log("Parsing a form"),
+      parse_html_post(Req);
+    ?JSON_CT ++ _ ->
+      logger:log("Parsing json"),
+      parse_json(Req);
+    _ ->
+      error(Req, ?HTML_CT, <<"Please send a mime type of application/x-www-form-urlencoded or application/json">>)
+    end;
 
 handle(Unknown, Req) ->
-  Req:respond({400, [{"Content-Type", "text/html"}], subst("Bad Request: ~s", [Unknown])}).
+  Req:respond({400, [{"Content-Type", ?HTML_CT}], subst("Bad Request: ~s", [Unknown])}).
 
 error(Req, Type, Body) when is_binary(Body) ->
   Req:respond({500, [{"Content-Type", Type}], Body}).
@@ -42,3 +50,13 @@ clean_path(Path) ->
     N ->
       string:substr(Path, 1, string:len(Path) - (N + 1))
   end.
+
+parse_json(Req) ->
+  Payload = mochijson2:decode(Req:recv_body()),
+  Response = list_to_binary(mochijson2:encode({struct,[{<<"response">>,<<"ok">>}]})),
+  success(Req, ?JSON_CT, Response).
+
+parse_html_post(Req) ->
+  Payload = Req:parse_post(),
+  Response = <<"OK">>,
+  success(Req, ?HTML_CT, Response).

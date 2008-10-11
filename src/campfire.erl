@@ -8,7 +8,7 @@
 -export([start_link/0, shutdown/0]).
 
 start_link() ->
-  gen_server:start_link({local, ?MODULE}, ?MODULE, [], []),
+  gen_server:start_link({local, ?SERVER}, ?SERVER, [], []),
   connection:start_link(),
   web_server:start(5050).
 
@@ -20,7 +20,9 @@ shutdown() ->
 init([]) ->
   {ok, 0}.
 
-% handle_call(send_message, _From, State) ->
+handle_call({send_message, Message, Paste}, _From, State) ->
+  gen_fsm:send_event(connection, {message, Message, Paste}),
+  {reply, ok, State};
 
 handle_call(stop, _From, State) ->
   {stop, normal, State};

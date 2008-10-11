@@ -22,17 +22,18 @@ poller() ->
   try gen_fsm:send_event(?SERVER, poll) of
     ok ->
       timer:sleep(5000),
+      logger:log("Poll request"),
       poller()
   catch
     error:X -> {nothing, caught, error, X}
   end.
-
 
 pinger() ->
   process_flag(trap_exit, true),
   try gen_fsm:send_event(?SERVER, ping) of
     ok ->
       timer:sleep(60000),
+      logger:log("Ping request"),
       pinger()
   catch
     error:X -> {nothing, caught, error, X}
@@ -44,6 +45,7 @@ init([]) ->
         application:start(inets),
         ssl:start(),
         http:set_options([{cookies, enabled}]),
+        logger:log("Started"),
         {ok, disconnected, [ConfigData, []]};
       {error, Why} ->
         {stop, Why}
@@ -61,6 +63,7 @@ disconnected(poll, [ConfigData, _RoomData]) ->
   Post = ["email_address=", ibrowse_lib:url_encode(Username), "&", "password=", ibrowse_lib:url_encode(Password)],
   case http:request(post, {lists:flatten(Url) ++ "login", [], "application/x-www-form-urlencoded", lists:flatten(Post)}, [], []) of
     {ok, {{_, 302, _}, Headers, _}} ->
+      logger:log("Logged in"),
       check_login_headers(Url, Headers, [ConfigData, _RoomData]);
     _ ->
       {next_state, disconnected, [ConfigData, _RoomData]}
@@ -80,6 +83,7 @@ connected(poll, [ConfigData, _RoomData]) ->
   Url = [Scheme, "://", ibrowse_lib:url_encode(Domain), ".campfirenow.com/", "room/", RoomId],
   case http:request(lists:flatten(Url)) of
     {ok, {{_, 200, _}, _, _}} ->
+      logger:log("Joined the room"),
       {next_state, active, [ConfigData, _RoomData]};
     _ ->
       {next_state, connected, [ConfigData, _RoomData]}
@@ -98,6 +102,7 @@ active(poll, [ConfigData, _RoomData]) ->
   %   end,
   % Url = [Scheme, "://", ibrowse_lib:url_encode(Domain), ".campfirenow.com/", "room/", Roomid],
   % http:request(lists:flatten(Url)),
+  logger:log("Polling campfire for messages"),
   {next_state, active, [ConfigData, _RoomData]};
 
 active({message, Message, Paste}, [ConfigData, _RoomData]) ->
@@ -119,6 +124,7 @@ active({message, Message, Paste}, [ConfigData, _RoomData]) ->
   Post = ["message=", ibrowse_lib:url_encode(Message), "&", "t=", lists:concat([First, Second]), PasteParam],
   case http:request(post, {lists:flatten(Url), [], "application/x-www-form-urlencoded", lists:flatten(Post)}, [], []) of
     {ok, {{_, 200, _}, _, _}} ->
+      logger:log("posted a message"),
       {next_state, active, [ConfigData, _RoomData]};
     _ ->
       {next_state, disconnected, [ConfigData, _RoomData]}
@@ -134,6 +140,7 @@ active(ping, [ConfigData, _RoomData]) ->
     end,
   Url = [Scheme, "://", ibrowse_lib:url_encode(Domain), ".campfirenow.com/", "room/", Roomid, "/tabs"],
   http:request(post, {lists:flatten(Url), [], [], []}, [], []),
+  logger:log("Just pinged tabs"),
   {next_state, active, [ConfigData, _RoomData]}.
 
 handle_event(stop, _StateName, [ConfigData, _RoomData]) ->
