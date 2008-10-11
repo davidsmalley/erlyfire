@@ -41,7 +41,6 @@ pinger() ->
 init([]) ->
     case file:consult("../conf/erlyfire.conf") of
       {ok, ConfigData} ->
-        io:format("ConfigData=~p~n",[ConfigData]),
         application:start(inets),
         ssl:start(),
         http:set_options([{cookies, enabled}]),
@@ -51,7 +50,6 @@ init([]) ->
       end.
 
 disconnected(poll, [ConfigData, _RoomData]) ->
-  io:format("ConfigData in connect=~p~n",[ConfigData]),
   [{domain, Domain}, {use_ssl, Ssl}, {username, Username}, {password, Password}, {room_id, _}] = ConfigData,
   case Ssl of
     true ->
@@ -151,7 +149,6 @@ handle_sync_event(_Event, _From, _StateName, _StateData) ->
     ok.
 
 terminate(Reason, _State, [ConfigData, _RoomData]) ->
-    io:format("Closing down Campfire Connection ~p", [Reason]),
     close_connection(ConfigData),
     application:stop(inets),
     ssl:stop(),
