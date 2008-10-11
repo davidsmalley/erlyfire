@@ -89,14 +89,14 @@ connected(ping, [ConfigData, _RoomData]) ->
   {next_state, connected, [ConfigData, _RoomData]}.
 
 active(poll, [ConfigData, _RoomData]) ->
-  [{domain, Domain}, {use_ssl, Ssl}, _, _, {room_id, Roomid}] = ConfigData,
-  case Ssl of
-    true ->
-      Scheme = "https";
-    false ->
-      Scheme = "http"
-    end,
-  Url = [Scheme, "://", ibrowse_lib:url_encode(Domain), ".campfirenow.com/", "room/", Roomid],
+  % [{domain, Domain}, {use_ssl, Ssl}, _, _, {room_id, Roomid}] = ConfigData,
+  % case Ssl of
+  %   true ->
+  %     Scheme = "https";
+  %   false ->
+  %     Scheme = "http"
+  %   end,
+  % Url = [Scheme, "://", ibrowse_lib:url_encode(Domain), ".campfirenow.com/", "room/", Roomid],
   % http:request(lists:flatten(Url)),
   {next_state, active, [ConfigData, _RoomData]};
 
@@ -148,7 +148,7 @@ handle_info(_Info, StateName, StateData) ->
 handle_sync_event(_Event, _From, _StateName, _StateData) ->
     ok.
 
-terminate(Reason, _State, [ConfigData, _RoomData]) ->
+terminate(_Reason, _State, [ConfigData, _RoomData]) ->
     close_connection(ConfigData),
     application:stop(inets),
     ssl:stop(),
