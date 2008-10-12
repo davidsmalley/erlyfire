@@ -8,6 +8,7 @@
 -export([start_link/0, shutdown/0]).
 
 start_link() ->
+  logger:start(),
   gen_server:start_link({local, ?SERVER}, ?SERVER, [], []),
   connection:start_link(),
   web_server:start(5050).
@@ -15,7 +16,8 @@ start_link() ->
 shutdown() ->
   connection:stop(),
   gen_server:call(?SERVER, stop),
-  web_server:stop(5050).
+  web_server:stop(5050),
+  logger:stop().
 
 init([]) ->
   {ok, 0}.

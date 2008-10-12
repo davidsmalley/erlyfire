@@ -116,6 +116,8 @@ active({message, Message, Paste}, [ConfigData, _RoomData]) ->
   case Paste of
     true ->
       PasteParam = "&paste=true";
+    "true" ->
+      PasteParam = "&paste=true";
     _ ->
       PasteParam = ""
     end,

@@ -1,6 +1,7 @@
 -module(web_server).
 
 -export([start/1,stop/0,dispatch_requests/1]).
+-compile([export_all]).
 
 -define(JSON_CT, "application/json").
 -define(HTML_CT, "text/html").
@@ -31,6 +32,13 @@ handle("/post", Req) ->
       error(Req, ?HTML_CT, <<"Please send a mime type of application/x-www-form-urlencoded or application/json">>)
     end;
 
+handle("/websitepulse", Req) ->
+  Params = Req:parse_qs(),
+  {value, {"text",Message}} = lists:keysearch("text", 1, Params),
+  send_to_campfire({Message, false}),
+  Response = <<"OK">>,
+  success(Req, ?HTML_CT, Response);
+
 handle(Unknown, Req) ->
   Req:respond({400, [{"Content-Type", ?HTML_CT}], subst("Bad Request: ~s", [Unknown])}).
 
@@ -52,11 +60,61 @@ clean_path(Path) ->
   end.
 
 parse_json(Req) ->
+  logger:log(io:format("Request: ~p~n", [Req])),
   Payload = mochijson2:decode(Req:recv_body()),
+  logger:log(io:format("Payload: ~p~n", [Payload])),
+  {Message, Paste} = extract_message(Payload),
+  logger:log(io:format("Extracted message: Message: ~p Paste: ~p~n", [Message, Paste])),
+  send_to_campfire({Message, Paste}),
   Response = list_to_binary(mochijson2:encode({struct,[{<<"response">>,<<"ok">>}]})),
   success(Req, ?JSON_CT, Response).
 
 parse_html_post(Req) ->
+  logger:log(io:format("Request: ~p~n", [Req])),
   Payload = Req:parse_post(),
+  logger:log(io:format("Payload: ~p~n", [Payload])),
+  {Message, Paste} = extract_message(Payload),
+  logger:log(io:format("Extracted message: Message: ~p Paste: ~p~n", [Message, Paste])),
+  send_to_campfire({Message, Paste}),
   Response = <<"OK">>,
   success(Req, ?HTML_CT, Response).
+
+send_to_campfire({Message, Paste}) ->
+  case {Message, Paste} of
+    {false, false} ->
+      Message;
+    {Message, Paste} ->
+      logger:log(io:format("Sending to campfire: Message: ~p Paste: ~p~n", [Message, Paste])),
+      gen_server:call(campfire, {send_message, Message, Paste})
+    end,
+  ok.
+
+extract_message({struct, Body}) ->
+  case lists:keysearch(<<"message">>, 1, Body) of
+    {value, {<<"message">> , MessageBinary}} ->
+      Message = binary_to_list(MessageBinary);
+    false ->
+      Message = false
+  end,
+  case lists:keysearch(<<"paste">>, 1, Body) of
+    {value, {<<"paste">>, PasteBinary}} ->
+      Paste = binary_to_list(PasteBinary);
+    false ->
+      Paste = false
+  end,
+  {Message, Paste};
+
+extract_message(Body) ->
+  case lists:keysearch("message", 1, Body) of
+    {value, {"message", Message}} ->
+      Message;
+    false ->
+      Message = false
+    end,
+  case lists:keysearch("paste", 1, Body) of
+    {value, {"paste", Paste}} ->
+      Paste;
+    false ->
+      Paste = false
+    end,
+  {Message, Paste}.
