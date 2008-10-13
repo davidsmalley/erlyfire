@@ -5,25 +5,19 @@
 
 -export([init/1, handle_call/3, handle_cast/2, handle_info/2, terminate/2, code_change/3]).
 
--export([start_link/0, shutdown/0]).
+-export([start/0, shutdown/0]).
 
-start_link() ->
-  logger:start(),
-  gen_server:start_link({local, ?SERVER}, ?SERVER, [], []),
-  connection:start_link(),
-  web_server:start(5050).
+start() ->
+  gen_server:start_link({local, ?SERVER}, ?SERVER, [], []).
 
 shutdown() ->
-  connection:stop(),
-  gen_server:call(?SERVER, stop),
-  web_server:stop(5050),
-  logger:stop().
+  gen_server:call(?SERVER, stop).
 
 init([]) ->
   {ok, 0}.
 
 handle_call({send_message, Message, Paste}, _From, State) ->
-  gen_fsm:send_event(connection, {message, Message, Paste}),
+  gen_fsm:send_event(connection, {message,Message, Paste}),
   {reply, ok, State};
 
 handle_call(stop, _From, State) ->
