@@ -29,7 +29,7 @@ init([]) ->
       end.
 
 disconnected(poll, [ConfigData, _RoomData]) ->
-  [{domain, Domain}, {use_ssl, Ssl}, {username, Username}, {password, Password}, {room_id, _}] = ConfigData,
+  [{domain, Domain}, {use_ssl, Ssl}, {username, Username}, {password, Password}, {room_id, _}, _] = ConfigData,
   case Ssl of
     true ->
       Scheme = "https";
@@ -49,7 +49,7 @@ disconnected(ping, [ConfigData, _RoomData]) ->
   {next_state, disconnected, ConfigData}.
 
 connected(poll, [ConfigData, _RoomData]) ->
-  [{domain, Domain}, {use_ssl, Ssl}, {username, _}, {password, _}, {room_id, RoomId}] = ConfigData,
+  [{domain, Domain}, {use_ssl, Ssl}, {username, _}, {password, _}, {room_id, RoomId}, _] = ConfigData,
   case Ssl of
     true ->
       Scheme = "https";
@@ -80,7 +80,7 @@ active(poll, [ConfigData, _RoomData]) ->
   {next_state, active, [ConfigData, _RoomData]};
 
 active({message, Message, Paste}, [ConfigData, _RoomData]) ->
-  [{domain, Domain}, {use_ssl, Ssl}, _, _, {room_id, Roomid}] = ConfigData,
+  [{domain, Domain}, {use_ssl, Ssl}, _, _, {room_id, Roomid}, _] = ConfigData,
   case Ssl of
     true ->
       Scheme = "https";
@@ -106,7 +106,7 @@ active({message, Message, Paste}, [ConfigData, _RoomData]) ->
     end;
 
 active(ping, [ConfigData, _RoomData]) ->
-  [{domain, Domain}, {use_ssl, Ssl}, _, _, {room_id, Roomid}] = ConfigData,
+  [{domain, Domain}, {use_ssl, Ssl}, _, _, {room_id, Roomid}, _] = ConfigData,
   case Ssl of
     true ->
       Scheme = "https";
@@ -151,7 +151,7 @@ check_login_headers(Url, Headers, [ConfigData, _RoomData]) ->
   end.
 
 close_connection(ConfigData) ->
-  [{domain, Domain}, {use_ssl, Ssl}, _, _, {room_id, Roomid}] = ConfigData,
+  [{domain, Domain}, {use_ssl, Ssl}, _, _, {room_id, Roomid}, _] = ConfigData,
   case Ssl of
     true ->
       Scheme = "https";
