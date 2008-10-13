@@ -1,18 +1,39 @@
 -module(web_server).
 
--export([start/1,stop/0,dispatch_requests/1]).
+-export([start/0,stop/0,dispatch_requests/1]).
 -compile([export_all]).
 
 -define(JSON_CT, "application/json").
 -define(HTML_CT, "text/html").
 -define(FORM_CT, "application/x-www-form-urlencoded").
 
-start(Port) ->
+start() ->
+  Port = read_config(),
+  io:format("Port: ~p~n", [Port]),
   mochiweb_http:start([{port, Port},
 		       {loop, fun dispatch_requests/1}]).
 
 stop() ->
   mochiweb_http:stop().
+
+read_config() ->
+  case file:consult("../conf/erlyfire.conf") of
+    {ok, ConfFile} ->
+     ConfFile;
+    {error, Why} ->
+      ConfFile = [],
+      error_logger:error_msg(io:format("There was a problem reading the config file: ~p~n", [Why]))
+  end,
+  extract_port(ConfFile).
+
+extract_port(Conf) ->
+  case lists:keysearch(web_port, 1, Conf) of
+    {value,{web_port,Port}} ->
+      Port;
+    false ->
+      Port = 5050
+    end,
+  Port.
 
 dispatch_requests(Req) ->
   Path = Req:get(path),
