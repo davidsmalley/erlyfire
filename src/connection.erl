@@ -18,6 +18,7 @@ stop() ->
     gen_fsm:send_all_state_event(?SERVER, stop).
 
 init([]) ->
+  process_flag(trap_exit, true),
     case file:consult("../conf/erlyfire.conf") of
       {ok, ConfigData} ->
         application:start(inets),

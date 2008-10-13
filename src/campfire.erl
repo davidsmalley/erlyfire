@@ -14,6 +14,7 @@ shutdown() ->
   gen_server:call(?SERVER, stop).
 
 init([]) ->
+  process_flag(trap_exit, true),
   {ok, 0}.
 
 handle_call({send_message, Message, Paste}, _From, State) ->
