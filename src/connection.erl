@@ -107,16 +107,20 @@ active({message, Message, Paste}, [ConfigData, _RoomData]) ->
     end;
 
 active(ping, [ConfigData, _RoomData]) ->
-  [{domain, Domain}, {use_ssl, Ssl}, _, _, {room_id, Roomid}, _] = ConfigData,
+  [{domain, Domain}, {use_ssl, Ssl}, _, _, {room_id, RoomId}, _] = ConfigData,
   case Ssl of
     true ->
       Scheme = "https";
     false ->
       Scheme = "http"
     end,
-  Url = [Scheme, "://", ibrowse_lib:url_encode(Domain), ".campfirenow.com/", "room/", Roomid, "/tabs"],
-  http:request(post, {lists:flatten(Url), [], [], []}, [], []),
-  {next_state, active, [ConfigData, _RoomData]}.
+  Url = [Scheme, "://", ibrowse_lib:url_encode(Domain), ".campfirenow.com/", "room/", RoomId],
+  case http:request(lists:flatten(Url)) of
+    {ok, {{_, 200, _}, _, _}} ->
+      {next_state, active, [ConfigData, _RoomData]};
+    _ ->
+      {next_state, disconnected, [ConfigData, _RoomData]}
+    end.
 
 handle_event(stop, _StateName, [ConfigData, _RoomData]) ->
   {stop, "Called Shutdown", [ConfigData, _RoomData]}.
