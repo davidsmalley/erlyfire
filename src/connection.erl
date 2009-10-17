@@ -99,7 +99,7 @@ active({message, Message, Paste}, [ConfigData, _RoomData]) ->
   Url = [Scheme, "://", ibrowse_lib:url_encode(Domain), ".campfirenow.com/", "room/", Roomid, "/speak"],
   {First, Second, _} = erlang:now(),
   Post = ["message=", ibrowse_lib:url_encode(Message), "&", "t=", lists:concat([First, Second]), PasteParam],
-  case http:request(post, {lists:flatten(Url), [], "application/x-www-form-urlencoded", lists:flatten(Post)}, [], []) of
+  case http:request(post, {lists:flatten(Url), [{"X-Requested-With", "XMLHttpRequest"}, {"X-Prototype-Version", "	1.6.0.3"}], "application/x-www-form-urlencoded", lists:flatten(Post)}, [], []) of
     {ok, {{_, 200, _}, _, _}} ->
       {next_state, active, [ConfigData, _RoomData]};
     _ ->
