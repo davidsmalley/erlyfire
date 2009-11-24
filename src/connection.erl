@@ -90,17 +90,17 @@ active({message, Message, Paste}, [ConfigData, _RoomData]) ->
     end,
   case Paste of
     true ->
-      PasteParam = "&paste=true";
+      PasteParam = "&kind=paste";
     "true" ->
-      PasteParam = "&paste=true";
+      PasteParam = "&kind=paste";
     _ ->
-      PasteParam = ""
+      PasteParam = "&kind="
     end,
   Url = [Scheme, "://", ibrowse_lib:url_encode(Domain), ".campfirenow.com/", "room/", Roomid, "/speak"],
   {First, Second, _} = erlang:now(),
-  Post = ["message=", ibrowse_lib:url_encode(Message), "&", "t=", lists:concat([First, Second]), PasteParam],
-  case http:request(post, {lists:flatten(Url), [{"X-Requested-With", "XMLHttpRequest"}, {"X-Prototype-Version", "	1.6.0.3"}], "application/x-www-form-urlencoded", lists:flatten(Post)}, [], []) of
-    {ok, {{_, 200, _}, _, _}} ->
+  Post = ["message=", ibrowse_lib:url_encode(Message), "&", "t=", lists:concat([First, Second]), "now=", lists:concat([First, Second]), PasteParam, "&attempt=1"],
+  case http:request(post, {lists:flatten(Url), [{"X-Requested-With", "XMLHttpRequest"}, {"X-Prototype-Version", "1.6.0.3"}, {"Referer", lists:flatten([Scheme, "://", ibrowse_lib:url_encode(Domain), ".campfirenow.com/", "room/", Roomid])}], "application/x-www-form-urlencoded; charset=UTF-8", lists:flatten(Post)}, [], []) of
+    {ok, {{_, 201, _}, _, _}} ->
       {next_state, active, [ConfigData, _RoomData]};
     _ ->
       {next_state, disconnected, [ConfigData, _RoomData]}
